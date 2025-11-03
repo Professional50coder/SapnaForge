@@ -14,6 +14,12 @@ Every great venture starts with a dream sketched on paper, whispered in conversa
 
 ---
 
+## 📰 Media & Recognition
+
+- 🏆 Featured on LinkedIn - [Our Hackathon Journey](https://www.linkedin.com/posts/hitanshgopani_hackathon-aiforgood-entrepreneurship-activity-7378766742342266880-Fsgf?utm_source=share&utm_medium=member_desktop&rcm=ACoAAD5kiSsBfHVgaC4_DoiKWj_-cKye_LnXU-I)
+- 🎤 CODE ODYSSEY 4.0 Finalist
+- 📊 Impact: Supporting 1000+ NEET youth
+
 ## 🎯 Problem We're Solving
 
 ### The Challenge
