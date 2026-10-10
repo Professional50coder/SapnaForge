@@ -1,0 +1,5 @@
+# Optional: local speech-to-text (audio intake and subtitle_generator.py).
+# Also needs FFmpeg on PATH. torch is large; install a CUDA build if you have a GPU.
+faster-whisper>=1.0
+torch>=2.2
+tqdm>=4.66

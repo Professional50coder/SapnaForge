@@ -1,9 +1,14 @@
-fastapi
-uvicorn[standard]
-pydantic
-pymongo
-pymupdf
-SpeechRecognition
-pydub
-python-multipart
-langchain-google-genai
+# Runtime dependencies for the API (OCR, LLM, translation, news).
+# Ranges rather than exact pins: only the pure-Python logic is exercised in CI
+# (see requirements-dev.txt); the Google/LLM packages are not run in CI.
+fastapi>=0.115,<1
+uvicorn[standard]>=0.30,<1
+pydantic>=2.5,<3
+python-multipart>=0.0.9
+python-dotenv>=1.0,<2
+requests>=2.31,<3
+pymupdf>=1.24
+google-cloud-vision>=3.7,<4
+google-cloud-translate>=3.15,<4
+google-generativeai>=0.8
+langchain-google-genai>=2.0
