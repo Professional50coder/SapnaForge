@@ -13,21 +13,11 @@ class ChatResponse(BaseModel):
 
 
 import os
-from langchain_google_genai import ChatGoogleGenerativeAI
+from .llm import get_chat_model
 
 def get_llm_response(query: str, transcription: str) -> str:
-	google_api_key = os.getenv("GOOGLE_API_KEY")
-	if not google_api_key:
-		return "Google API key is required. Please set GOOGLE_API_KEY in your .env file."
 	try:
-		llm = ChatGoogleGenerativeAI(
-			model="gemini-2.5-flash",
-			temperature=0.2,
-			max_tokens=512,
-			timeout=30,
-			max_retries=2,
-			google_api_key=google_api_key,
-		)
+		llm = get_chat_model(temperature=0.2, max_tokens=512, timeout=30)
 	except Exception as e:
 		return f"Error initializing LLM: {str(e)}"
 
@@ -38,7 +28,7 @@ def get_llm_response(query: str, transcription: str) -> str:
 
 	try:
 		response = llm.invoke(prompt)
-		return str(response)
+		return getattr(response, 'content', None) or str(response)
 	except Exception as e:
 		return f"Error generating response: {str(e)}"
 

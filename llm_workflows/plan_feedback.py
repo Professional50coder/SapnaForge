@@ -1,4 +1,4 @@
-from langchain_google_genai import ChatGoogleGenerativeAI
+from .llm import get_chat_model
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime, timezone
@@ -46,22 +46,8 @@ def generate_student_feedback(json_data: Any) -> BusinessPlanFeedback:
     Returns:
         BusinessPlanFeedback: Structured feedback with actionable improvement suggestions
     """
-    # Get API key from environment
-    google_api_key = os.getenv("GOOGLE_API_KEY")
-    
-    if not google_api_key:
-        raise ValueError("Google API key is required. Please set GOOGLE_API_KEY in your .env file.")
+    llm = get_chat_model(temperature=0.3)  # slightly higher for more varied wording
 
-    # Initialize the LLM
-    llm = ChatGoogleGenerativeAI(
-        model="gemini-2.5-flash",
-        temperature=0.3,  # Slightly higher for more creative feedback
-        max_tokens=None,
-        timeout=None,
-        max_retries=2,
-        google_api_key=google_api_key,
-    )
-    
     # Get structured output using the BusinessPlanFeedback class
     structured_llm = llm.with_structured_output(BusinessPlanFeedback)
     
