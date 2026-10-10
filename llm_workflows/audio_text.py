@@ -9,29 +9,27 @@ import time
 
 
 # --- Constants ---
-GOOGLE_API_KEY = 'AIzaSyAF-7OArGZV9evzIebZg2vIO8I_UNZeZZs'
 DEFAULT_AUDIO_FILE = 'Audio_Gujrati_sample1.m4a'
 DEFAULT_OUTPUT_DIR = './generated_subtitles'
 DEFAULT_MODEL = 'large-v3-turbo'
 TEMP_FOLDER = './temp_audio_files'
 SUBTITLE_FOLDER = './generated_subtitles'
 
-# --- Dependency Checks ---
-try:
-    import torch
-    from faster_whisper import WhisperModel
-    from tqdm.auto import tqdm
-except ImportError as e:
-    print(f"Error: Required packages not installed.")
-    print("Install with: pip install faster-whisper torch tqdm")
-    print(f"Missing: {e}")
-    sys.exit(1)
-
-try:
-    import google.generativeai as genai
-    genai.configure(api_key=GOOGLE_API_KEY)
-except ImportError:
-    print("Warning: google.generativeai not installed. Some features may not work.")
+# --- Dependency loading ---
+# torch / faster-whisper / tqdm are heavy, so they are imported on first use.
+# This keeps the pure helpers below (SRT formatting, line splitting) importable
+# and testable without a GPU stack installed.
+def _load_asr_deps():
+    try:
+        import torch
+        from faster_whisper import WhisperModel
+        from tqdm.auto import tqdm
+    except ImportError as e:
+        raise RuntimeError(
+            "Audio transcription needs: pip install faster-whisper torch tqdm "
+            f"(missing: {e})"
+        ) from e
+    return torch, WhisperModel, tqdm
 
 # --- Utility Functions ---
 
@@ -160,6 +158,8 @@ def generate_subtitles(audio_file, output_dir=None, model_size="base"):
     Returns:
         tuple: (original_srt_path, multiline_srt_path, transcript_text, detected_language)
     """
+
+    torch, WhisperModel, tqdm = _load_asr_deps()
 
     # Validate input file
     if not os.path.exists(audio_file):

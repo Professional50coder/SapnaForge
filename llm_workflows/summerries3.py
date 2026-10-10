@@ -8,9 +8,9 @@ from datetime import datetime, timedelta
 # CONFIG
 # -------------------------
 
-# 🔑 API Keys
-NEWS_API_KEY = "ca1502e590ea4a28b4ec37dcadf42188"
-GEMINI_API_KEY = "AIzaSyDmZtInmhGnwYODL-3pd0VgMuxGiDBIi6c"
+# API keys are read from the environment (see .env.example)
+NEWS_API_KEY = os.getenv("NEWS_API_KEY", "")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY", "")
 
 # JSON file path (you can change this)
 JSON_FILE_PATH = "data.json"  # Replace with your JSON file path

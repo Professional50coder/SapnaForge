@@ -1,17 +1,16 @@
 import os
+import sys
 import json
 import logging
 import io
 from datetime import datetime
-import fitz  # PyMuPDF
 import concurrent.futures
-from google.cloud import vision
-from google.oauth2 import service_account
 
 # --- Configuration ---
-PDF_PATH = r"C:\Users\rcgop\Downloads\The Unfair Advantage-20250927T082820Z-1-001\The Unfair Advantage\Business Plans\sample_odia_1.pdf"  # Update PDF path
-SERVICE_ACCOUNT_JSON = r"C:\Users\USER\OneDrive\Desktop\text_json\gen-lang-client-0858700453-3f96694fab49.json"  # Your service account JSON
-OUTPUT_DIR = "pdf_output_threaded"  # Directory to save results
+# Credentials: set GOOGLE_APPLICATION_CREDENTIALS to the path of a Google Cloud
+# service-account JSON with the Vision API enabled (see .env.example).
+SERVICE_ACCOUNT_JSON = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+OUTPUT_DIR = os.getenv("OCR_OUTPUT_DIR", "pdf_output_threaded")  # Directory to save results
 IMAGE_DPI = 300              # DPI for PDF to image conversion
 CLEAN_IMAGES = True          # Delete images after OCR
 
@@ -26,13 +25,24 @@ LANGUAGE_HINTS = ["en", "hi", "or", "bn", "ta", "te", "ml", "kn", "gu", "pa", "m
 # Setup logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Initialize Vision client
-try:
-    credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_JSON)
-    client = vision.ImageAnnotatorClient(credentials=credentials)
-except Exception as e:
-    logging.error(f"Failed to initialize Google Cloud client: {e}")
-    exit()
+# The Vision client is created on first use so that importing this module (and
+# the API that depends on it) does not require Google credentials.
+_client = None
+
+def get_client():
+    """Return a cached Vision client, raising a clear error if credentials are missing."""
+    global _client
+    if _client is None:
+        from google.cloud import vision
+        from google.oauth2 import service_account
+        if not SERVICE_ACCOUNT_JSON or not os.path.exists(SERVICE_ACCOUNT_JSON):
+            raise RuntimeError(
+                "Set GOOGLE_APPLICATION_CREDENTIALS to a Google Cloud service-account "
+                "JSON file with the Vision API enabled."
+            )
+        credentials = service_account.Credentials.from_service_account_file(SERVICE_ACCOUNT_JSON)
+        _client = vision.ImageAnnotatorClient(credentials=credentials)
+    return _client
 
 # ---------------- Functions ---------------- #
 
@@ -43,6 +53,7 @@ def convert_pdf_to_images(pdf_path: str, output_dir: str, dpi: int = 300) -> lis
 
     image_paths = []
     try:
+        import fitz  # PyMuPDF
         doc = fitz.open(pdf_path)
         logging.info(f"Converting {doc.page_count} pages of '{pdf_path}' to images...")
         for page_num in range(doc.page_count):
@@ -58,13 +69,14 @@ def convert_pdf_to_images(pdf_path: str, output_dir: str, dpi: int = 300) -> lis
         return []
     return image_paths
 
-def perform_ocr_on_image(image_path: str) -> vision.AnnotateImageResponse:
+def perform_ocr_on_image(image_path: str):
     """Perform OCR on a single image file."""
     with io.open(image_path, 'rb') as image_file:
         content = image_file.read()
+    from google.cloud import vision
     image = vision.Image(content=content)
     image_context = vision.ImageContext(language_hints=LANGUAGE_HINTS)
-    return client.document_text_detection(image=image, image_context=image_context)
+    return get_client().document_text_detection(image=image, image_context=image_context)
 
 def process_single_page(image_path: str, page_num: int) -> dict:
     """
@@ -126,7 +138,7 @@ def save_results(all_pages_data: list, output_dir: str, unique_filename: str):
 
 # ---------------- Main ---------------- #
 
-def main():
+def main(PDF_PATH: str):
     if not os.path.exists(PDF_PATH):
         logging.error(f"PDF file not found at '{PDF_PATH}'.")
         return
@@ -171,4 +183,6 @@ def main():
     logging.info("=" * 50)
 
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) != 2:
+        sys.exit("usage: python utils/full_multi_updated2.py path/to/plan.pdf")
+    main(sys.argv[1])

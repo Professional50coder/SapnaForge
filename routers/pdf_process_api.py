@@ -6,7 +6,7 @@ import requests
 from llm_workflows.structured_template import get_structured_business_plan_student, get_structured_business_plan_mentor
 import os
 import logging
-from utils.full_multi_updated2 import convert_pdf_to_images, perform_ocr_on_image, save_results, client, IMAGE_DPI, OUTPUT_DIR, CLEAN_IMAGES
+from utils.full_multi_updated2 import convert_pdf_to_images, IMAGE_DPI, OUTPUT_DIR
 class PayloadItem(BaseModel):
     url: str
     type: str

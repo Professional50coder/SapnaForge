@@ -18,8 +18,9 @@ def analyze_business_plan(json_data: Any) -> BusinessPlanAnalysis:
         BusinessPlanAnalysis: Structured analysis with scores, feedback, and recommendations
     """
 
-    NEWS_API_KEY = os.getenv("NEWS_API_KEY", "ca1502e590ea4a28b4ec37dcadf42188")
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "AIzaSyDmZtInmhGnwYODL-3pd0VgMuxGiDBIi6c")
+    NEWS_API_KEY = os.getenv("NEWS_API_KEY")
+    # GEMINI_API_KEY falls back to GOOGLE_API_KEY so one key is enough.
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 
     def extract_keywords_from_transcription(transcribed_text):
         try:
