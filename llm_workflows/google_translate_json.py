@@ -31,11 +31,19 @@ class GoogleTranslateJSONConverter:
         # Add more as needed
     }
 
-    def __init__(self, project_id: str = None):
-        """Initialize Google Translate client"""
-        # Credentials come from GOOGLE_APPLICATION_CREDENTIALS (see .env.example).
-        from google.cloud import translate_v2 as translate
-        self.translate_client = translate.Client()
+    def __init__(self, project_id: str = None, client=None):
+        """Initialize Google Translate client (pass `client` to inject a stub in tests)."""
+        if client is None:
+            # Credentials come from GOOGLE_APPLICATION_CREDENTIALS (see .env.example).
+            from google.cloud import translate_v2 as translate
+            client = translate.Client()
+        self.translate_client = client
+
+    @classmethod
+    def resolve_language_code(cls, language: str) -> str:
+        """Map a language name ("Hindi") or code ("hi") to a lower-case code ("hi")."""
+        lang = (language or "").strip().lower()
+        return cls.LANGUAGE_CODE_MAP.get(lang, lang)
 
     def detect_language(self, text: str) -> str:
         """Detect language using Google Translate API"""
@@ -49,7 +57,7 @@ class GoogleTranslateJSONConverter:
     def translate_text(self, text: str, target_language: str, source_language: str = None) -> str:
         """Translate text using Google Translate API"""
         # Convert language name to code if needed
-        lang_code = self.LANGUAGE_CODE_MAP.get(target_language.lower(), target_language)
+        lang_code = self.resolve_language_code(target_language)
         try:
             result = self.translate_client.translate(
                 text, 
@@ -79,11 +87,12 @@ class GoogleTranslateJSONConverter:
         first_text = self._extract_first_text(json_data)
         detected_lang = self.detect_language(first_text) if first_text else 'en'
 
-        print(f"🔍 Detected language: {detected_lang}")
-        print(f"🎯 Translating to: {target_language}")
+        print(f"Detected language: {detected_lang}")
+        print(f"Translating to: {target_language}")
 
-        if detected_lang == target_language:
-            print("✅ Same language - no translation needed")
+        target_code = self.resolve_language_code(target_language)
+        if detected_lang == target_code:
+            print("Same language - no translation needed")
             return json_data
 
         # Translate the entire JSON structure
