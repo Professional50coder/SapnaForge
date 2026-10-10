@@ -1,0 +1,11 @@
+Plan: SATYABHAMA FABRICATION  (language: English and Odia)
+Sections filled: 6/8
+  [x] problem_and_customer
+  [x] solution_and_features
+  [x] market_and_competitors
+  [x] channels_and_revenue
+  [x] operations_and_team
+  [x] traction_and_funding
+  [ ] risks_and_mitigation  <- ask the founder
+  [ ] social_and_environmental_impact  <- ask the founder
+Mean section score: n/a (plan has no scores yet)
