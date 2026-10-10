@@ -6,17 +6,42 @@ import requests
 from llm_workflows.structured_template import get_structured_business_plan_student, get_structured_business_plan_mentor
 import os
 import logging
+import tempfile
+from urllib.parse import urlparse
 from utils.full_multi_updated2 import convert_pdf_to_images, IMAGE_DPI, OUTPUT_DIR
 class PayloadItem(BaseModel):
     url: str
     type: str
 
 
+def validate_url(url: str) -> str:
+    """Accept only http(s) URLs. Local paths and other schemes (file://, ftp://) are rejected."""
+    parsed = urlparse(url or "")
+    if parsed.scheme not in ("http", "https") or not parsed.netloc:
+        raise HTTPException(status_code=400, detail="url must be an absolute http(s) URL")
+    return url
+
+
+def download_to_temp(url: str, suffix: str) -> str:
+    """Download `url` into a temporary file and return its path (caller deletes it)."""
+    validate_url(url)
+    try:
+        response = requests.get(url, timeout=60)
+    except requests.RequestException as e:
+        raise HTTPException(status_code=400, detail=f"Failed to download file: {e}")
+    if response.status_code != 200:
+        raise HTTPException(status_code=400, detail="Failed to download file from link.")
+    fd, path = tempfile.mkstemp(suffix=suffix)
+    with os.fdopen(fd, "wb") as f:
+        f.write(response.content)
+    return path
+
+
 router = APIRouter()
 
 
 @router.post("/process-pdf")
-async def process_pdf_api(payload: Union[PayloadItem, List[PayloadItem]]):
+def process_pdf_api(payload: Union[PayloadItem, List[PayloadItem]]):
     # Expect payload as [{url: '', type: ''}]
     import json
     try:
@@ -32,14 +57,8 @@ async def process_pdf_api(payload: Union[PayloadItem, List[PayloadItem]]):
 
     if file_type == 'pdf' and url:
         import concurrent.futures
-        response = requests.get(url)
-        if response.status_code == 200:
-            temp_pdf_path = os.path.join(OUTPUT_DIR, "temp_input.pdf")
-            with open(temp_pdf_path, "wb") as f:
-                f.write(response.content)
-            pdf_to_use = temp_pdf_path
-        else:
-            raise HTTPException(status_code=400, detail="Failed to download PDF from link.")
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        pdf_to_use = download_to_temp(url, ".pdf")
         try:
             image_files = convert_pdf_to_images(pdf_to_use, OUTPUT_DIR, IMAGE_DPI)
             all_pages_data = []
@@ -63,8 +82,6 @@ async def process_pdf_api(payload: Union[PayloadItem, List[PayloadItem]]):
             # save_results(all_pages_data, OUTPUT_DIR, "api_result")
             student_structured = get_structured_business_plan_student(all_pages_data)
             mentor_structured = get_structured_business_plan_mentor(all_pages_data)
-            print("student_structured", student_structured)
-            print("mentor_structured", mentor_structured)
             return {
                 "transcribe": json.dumps(all_pages_data, ensure_ascii=False),
                 "structured_data_student": student_structured,
@@ -74,12 +91,19 @@ async def process_pdf_api(payload: Union[PayloadItem, List[PayloadItem]]):
             logging.error(f"API error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
         finally:
-            if url and os.path.exists(os.path.join(OUTPUT_DIR, "temp_input.pdf")):
-                os.remove(os.path.join(OUTPUT_DIR, "temp_input.pdf"))
+            if os.path.exists(pdf_to_use):
+                os.remove(pdf_to_use)
     elif file_type == 'audio' and url:
         try:
             from llm_workflows.audio_text import generate_subtitles
-            transcript = generate_subtitles(url)
+            audio_path = download_to_temp(url, os.path.splitext(urlparse(url).path)[1] or ".m4a")
+            try:
+                # generate_subtitles returns (original_srt, multiline_srt, transcript, language)
+                _, _, transcript, _ = generate_subtitles(audio_path)
+            finally:
+                os.remove(audio_path)
+            if not transcript:
+                raise HTTPException(status_code=500, detail="Transcription failed (is FFmpeg installed?)")
             # Apply get_structured_business_plan to transcript as a single page
             pages_data = [{"full_text": transcript}]
             student_structured = get_structured_business_plan_student(pages_data)
@@ -89,6 +113,8 @@ async def process_pdf_api(payload: Union[PayloadItem, List[PayloadItem]]):
                 "structured_data_student": student_structured,
                 "structured_data_mentor": mentor_structured
             }
+        except HTTPException:
+            raise
         except Exception as e:
             logging.error(f"Audio API error: {e}")
             raise HTTPException(status_code=500, detail=str(e))
